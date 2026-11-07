@@ -67,6 +67,18 @@ esac
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
 # Determine the Java command to use to start the JVM.
+if [ -z "$JAVA_HOME" ] && [ -d "$APP_HOME/.tools/jdk/Contents/Home" ]; then
+    export JAVA_HOME="$APP_HOME/.tools/jdk/Contents/Home"
+fi
+if [ -z "$GRADLE_USER_HOME" ] && [ -d "$APP_HOME/.tools/gradle_home" ]; then
+    export GRADLE_USER_HOME="$APP_HOME/.tools/gradle_home"
+fi
+if [ -z "$ANDROID_HOME" ] && [ -d "$APP_HOME/.tools/sdk" ]; then
+    export ANDROID_HOME="$APP_HOME/.tools/sdk"
+fi
+if [ -z "$ANDROID_USER_HOME" ] && [ -d "$APP_HOME/.tools/android_user_home" ]; then
+    export ANDROID_USER_HOME="$APP_HOME/.tools/android_user_home"
+fi
 if [ -n "$JAVA_HOME" ] ; then
     if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
         # IBM's JDK on AIX uses strange locations for the executables

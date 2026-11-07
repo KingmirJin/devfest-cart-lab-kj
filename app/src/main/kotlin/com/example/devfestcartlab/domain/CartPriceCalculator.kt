@@ -37,18 +37,14 @@ class CartPriceCalculator {
   fun calculate(items: List<CartItem>, rule: DiscountRule = DiscountRule()): PriceBreakdown {
     val subtotal = roundCurrency(items.sumOf { it.unitPrice * it.quantity })
 
-    // Starter 初始实现（含 2 处算价缺陷，供 Workshop Level A 现场修复）：
-    // 1. 先扣除了优惠券再判断满减门槛并打折（叠加顺序错误）
-    // 2. 抵扣优惠券后未做 0.0 下限兜底（大额无门槛券会算出负数金额）
-    val afterCoupon = roundCurrency(subtotal - rule.couponAmount)
     val discountedSubtotal =
-      if (afterCoupon >= rule.threshold) {
-        roundCurrency(afterCoupon * rule.discountRate)
+      if (subtotal >= rule.threshold) {
+        roundCurrency(subtotal * rule.discountRate)
       } else {
-        afterCoupon
+        subtotal
       }
 
-    val finalPayable = roundCurrency(discountedSubtotal)
+    val finalPayable = roundCurrency((discountedSubtotal - rule.couponAmount).coerceAtLeast(0.0))
 
     return PriceBreakdown(
       subtotal = subtotal,
