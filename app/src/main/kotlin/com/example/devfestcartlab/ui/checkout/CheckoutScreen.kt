@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,6 +26,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -97,17 +101,106 @@ internal fun CheckoutContent(
     )
   }
 
-  // BUG (Workshop Level B): 未使用 Scaffold innerPadding 或 WindowInsets 安全区，导致顶栏、列表与底部结算按钮被系统栏遮挡
-  Box(
-    modifier = modifier
-      .fillMaxSize()
-      .background(MaterialTheme.colorScheme.background),
-  ) {
+  Scaffold(
+    modifier = modifier.fillMaxSize(),
+    containerColor = MaterialTheme.colorScheme.background,
+    bottomBar = {
+      // 底部固定结算栏：使用 Scaffold bottomBar 槽位并在 Row 上应用 navigationBarsPadding() 确保内容避开系统导航栏
+      Surface(
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("checkout_bottom_bar"),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 8.dp,
+        shadowElevation = 12.dp,
+      ) {
+        val totalSaved =
+          (uiState.breakdown.subtotal - uiState.breakdown.finalPayable).coerceAtLeast(0.0)
+
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          // 左侧：全选按钮
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.clickable(onClick = onToggleSelectAll),
+          ) {
+            MallCheckCircle(
+              checked = uiState.isAllSelected,
+              onClick = onToggleSelectAll,
+            )
+            Text(
+              text = "全选",
+              style = MaterialTheme.typography.bodySmall,
+              fontWeight = FontWeight.Medium,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
+
+          // 右侧：合计金额 + 立即结算胶囊按钮
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+          ) {
+            Column(horizontalAlignment = Alignment.End) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+              ) {
+                Text(
+                  text = "合计:",
+                  style = MaterialTheme.typography.labelMedium,
+                  color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                  text = formatYen(uiState.breakdown.finalPayable),
+                  style = MaterialTheme.typography.titleLarge,
+                  fontWeight = FontWeight.ExtraBold,
+                  color = if (uiState.breakdown.finalPayable < 0) MaterialTheme.colorScheme.error else CoralPrice,
+                  modifier = Modifier.testTag("checkout_final_payable_text"),
+                )
+              }
+              Text(
+                text = "共省 ${formatYen(totalSaved)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = CoralPrice,
+              )
+            }
+
+            Button(
+              onClick = onSubmitOrder,
+              shape = RoundedCornerShape(50),
+              colors = ButtonDefaults.buttonColors(
+                containerColor = BrandBlue,
+                contentColor = Color.White,
+              ),
+              contentPadding = PaddingValues(horizontal = 20.dp, vertical = 11.dp),
+              modifier = Modifier.testTag("checkout_submit_button"),
+            ) {
+              Text(
+                text = "立即结算(${uiState.totalSelectedCount})",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+              )
+            }
+          }
+        }
+      }
+    },
+  ) { innerPadding ->
     LazyColumn(
       modifier = Modifier
         .fillMaxSize()
+        .consumeWindowInsets(innerPadding)
+        .imePadding()
         .testTag("checkout_item_list"),
-      contentPadding = PaddingValues(bottom = 16.dp),
+      contentPadding = innerPadding,
       verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
       // 1. GDG DevFest Shanghai 商城沉浸式顶栏 + 满 200 打 8 折动态进度条
@@ -185,97 +278,9 @@ internal fun CheckoutContent(
         }
       }
 
-      // 预留底部空白，但在 Edge-to-Edge 下仍需配合 navigationBarsPadding + imePadding
+      // 列表底部预留适当间隔
       item {
-        Spacer(modifier = Modifier.height(84.dp))
-      }
-    }
-
-    // BUG (Workshop Level B): 底部固定结算栏未处理系统导航栏 Insets (navigationBarsPadding / Scaffold bottomBar)
-    Surface(
-      modifier = Modifier
-        .align(Alignment.BottomCenter)
-        .fillMaxWidth()
-        .testTag("checkout_bottom_bar"),
-      color = MaterialTheme.colorScheme.surface,
-      tonalElevation = 8.dp,
-      shadowElevation = 12.dp,
-    ) {
-      val totalSaved =
-        (uiState.breakdown.subtotal - uiState.breakdown.finalPayable).coerceAtLeast(0.0)
-
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(horizontal = 14.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-      ) {
-        // 左侧：全选按钮
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(6.dp),
-          modifier = Modifier.clickable(onClick = onToggleSelectAll),
-        ) {
-          MallCheckCircle(
-            checked = uiState.isAllSelected,
-            onClick = onToggleSelectAll,
-          )
-          Text(
-            text = "全选",
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        }
-
-        // 右侧：合计金额 + 立即结算胶囊按钮
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-          Column(horizontalAlignment = Alignment.End) {
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-              Text(
-                text = "合计:",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-              )
-              Text(
-                text = formatYen(uiState.breakdown.finalPayable),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.ExtraBold,
-                color = if (uiState.breakdown.finalPayable < 0) MaterialTheme.colorScheme.error else CoralPrice,
-                modifier = Modifier.testTag("checkout_final_payable_text"),
-              )
-            }
-            Text(
-              text = "共省 ${formatYen(totalSaved)}",
-              style = MaterialTheme.typography.labelSmall,
-              color = CoralPrice,
-            )
-          }
-
-          Button(
-            onClick = onSubmitOrder,
-            shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(
-              containerColor = BrandBlue,
-              contentColor = Color.White,
-            ),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 11.dp),
-            modifier = Modifier.testTag("checkout_submit_button"),
-          ) {
-            Text(
-              text = "立即结算(${uiState.totalSelectedCount})",
-              style = MaterialTheme.typography.labelLarge,
-              fontWeight = FontWeight.Bold,
-            )
-          }
-        }
+        Spacer(modifier = Modifier.height(16.dp))
       }
     }
   }
